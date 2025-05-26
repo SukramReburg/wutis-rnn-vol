@@ -7,7 +7,7 @@ from alpaca.data.timeframe import TimeFrame
 
 from datetime import datetime
 
-def get_prev_data(ticker,start_year):
+def fetch_alpaca(ticker,start_year):
 
     with open('config/config.yaml', 'r') as f:
         config = yaml.safe_load(f)
@@ -39,5 +39,5 @@ if __name__ == "__main__":
 
     for ticker in tickers:
         print(f"Fetching data for {ticker}...")
-        df = get_prev_data(ticker,start_year)
+        df = fetch_alpaca(ticker,start_year)
         df.to_csv(os.path.join(path, f"{ticker}.csv"))

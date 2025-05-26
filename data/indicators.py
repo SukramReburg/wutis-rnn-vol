@@ -1,4 +1,7 @@
 import pandas as pd
+import numpy as np
+import yaml
+import os
 
 class Indicator(): 
     def __init__(self, data, name=None): 
@@ -206,3 +209,67 @@ class AROON(Indicator):
             f'{self.name}_up': aroon_up,
             f'{self.name}_down': aroon_down
         }, index=self.data.index)
+
+class Volatility(Indicator):
+    def __init__(self, data, period, name='vol'):
+        super().__init__(data, name)
+        self.period = period
+
+    def calculate(self):
+        log_returns = np.log(self.data['close'] / self.data['close'].shift(1))
+        volatility = log_returns.rolling(window=self.period).std() # * np.sqrt(252)  # Annualized volatility
+        return volatility
+
+def create_indicators(): 
+    indicators_impl = {'rsi': RSI, 
+                  'ma': MovingAverage, 
+                  'ema': Exponential, 
+                  'bb': BollingerBands, 
+                  'macd': MACD, 
+                  'atr': ATR, 
+                  'stoch': StochasticOscillator, 
+                  'adx': ADX, 
+                  'wr': WilliamsR, 
+                  'cci': CCI, 
+                  'obv': OBV, 
+                  'mfi': MFI, 
+                  'cmo': CMO, 
+                  'aroon': AROON,
+                  'vol': Volatility
+                  }
+    with open('config/data_config.yaml', 'r') as f:
+        config = yaml.safe_load(f)
+    indicators = config['indicators']
+    tickers = config['indicators_for_tickers']
+    paths = config['paths']
+
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+    for ticker in tickers:
+        print(f"Processing indicators for {ticker}...")
+        path = os.path.join(base_dir, paths['raw'], f"{ticker}.csv")
+        data = pd.read_csv(path)
+
+        for indicator_def in indicators:
+            name = indicator_def['name']
+            params = indicator_def.get('params', {})
+
+            # if name in data.columns: # does not work 
+            #     print(f"Skipping {name.upper()} for {ticker}, already exists.")
+            #     continue
+
+            if name in indicators_impl:
+                cls = indicators_impl[name]
+                instance = cls(data, **params) 
+                instance.add_indicator()
+                data = instance.data
+                print(f"Created: {name}")
+            else:
+                print(f"Unknown indicator: {name}")
+        data.to_csv(os.path.join(base_dir, paths['raw'], f"{ticker}.csv"), index=False)
+    
+    print("All indicators processed successfully.")
+
+if __name__ == "__main__":
+    create_indicators()

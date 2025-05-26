@@ -29,6 +29,18 @@ indicators:
       period: 14
       smooth_k: 3
       smooth_d: 3
+  - name: 'vol'
+    params:
+      period: 60
+
+sequence_length: 60
+y_column: 'SPY_vol'
+
+train_size: 0.7
+# test_size: 0.2
+val_size: 0.1
+
 paths: 
   raw: 'data/raw'  
   processed: 'data/processed'
+  plots: 'analysis/plots'

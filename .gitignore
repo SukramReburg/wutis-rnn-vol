@@ -176,3 +176,19 @@ cython_debug/
 # ignore config files
 config.yaml
 config.yml
+
+# ignore cache files
+.cache/
+# ignore logs
+logs/
+# ignore coverage files
+.coverage
+# ignore virtual environment files
+# venv/
+
+# Raw and processed folders
+raw/
+processed/
+
+# Uncomment when working on final model training
+models/

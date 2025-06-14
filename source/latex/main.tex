@@ -1,0 +1,140 @@
+\documentclass[conference]{IEEEtran}
+
+% Extend margins for compact layout
+% \usepackage[a4paper, top=1.3cm, bottom=1.3cm, left=1.2cm, right=1.2cm]{geometry}
+
+
+% Packages
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{hyperref}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage[section]{placeins}
+\usepackage{fancyhdr} % For page numbers
+\usepackage{verbatim}
+\usepackage{subcaption}
+\usepackage{tabularx}
+\usepackage{ltablex} %combines tabularx with longtable
+\usepackage{wrapfig}
+\usepackage{float}
+\usepackage{listings}
+\keepXColumns 
+% Defining new column types
+\newcolumntype{L}{>{\raggedright\arraybackslash}X} % left-aligned
+\newcolumntype{C}{>{\centering\arraybackslash}X}  % center-aligned
+\newcolumntype{R}{>{\raggedleft\arraybackslash}X} % right-aligned
+% Page number settings
+\pagestyle{fancy}
+\fancyhf{}
+\cfoot{\thepage} % Page number at the bottom center
+
+% Listings settings for code
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+%    numbers=left,
+    numberstyle=\tiny,
+    keywordstyle=\color{blue},
+    commentstyle=\color{gray},
+    stringstyle=\color{red},
+}
+
+% Title and Authors
+\title{Convolutional Recurrent Neural Networks: \\
+Implementation for Volatility Prediction with  Trading Times Analysis}
+\author{
+    \IEEEauthorblockN{Denys Shkola\IEEEauthorrefmark{1}, Markus Gruber\IEEEauthorrefmark{2}, Orest Mykhailiuk\IEEEauthorrefmark{3}}
+    % \\
+    % \IEEEauthorblockA{\IEEEauthorrefmark{1}Department of Mathematics, University of Vienna }
+    % \IEEEauthorblockA{\IEEEauthorrefmark{2}Department of Mathematics, Technical University of Vienna }
+    % \IEEEauthorblockA{\IEEEauthorrefmark{3}Department of Mathematics, Technical University of Vienna }
+}
+
+\begin{document}
+
+\maketitle
+
+\thispagestyle{fancy}
+\begin{abstract}
+This paper investigates the use of CRNN model, based on combined convolutional and recurrent neural layers, for predicting the future volatility of financial assets. The chosen three model is implemented via Keras Tensorflow framework. Using S\&P 500 (SPX) and CBOE Volatility Index (VIX) datasets, the data is preprocessed for time-series forecasting and model performance is evaluated based on custom analysis model for best trading times. 
+\end{abstract}
+
+\begin{IEEEkeywords}
+CRNN, Volatility Prediction, Q-learning, Real-Time Trading, Payday Anomaly
+\end{IEEEkeywords}
+
+\section{Introduction}
+Financial time series are highly noisy, nonlinear, and exhibit both short- and long-range dependencies. Capturing such dynamics is essential for forecasting volatility and making informed trading decisions. While traditional models like ARIMA and GARCH fail to model nonlinear temporal patterns effectively, deep learning architectures offer powerful alternatives.
+
+Among these, Recurrent Neural Networks (RNNs) such as LSTMs and GRUs have shown promise in capturing sequential dependencies. However, they often struggle to extract localized patterns and are prone to vanishing gradients over long sequences. On the other end, attention-based models like Transformers are computationally expensive and require large datasets for stable convergence conditions that are often impractical in financial domains with limited labeled data.
+
+To address these limitations, Convolutional Recurrent Neural Network (CRNN) architecture is adopted. CRNNs combine 1D convolutional layers for local pattern recognition with recurrent layers for temporal sequence modeling. This hybrid approach enables efficient learning of both short-term structures (e.g., technical indicators) and long-term market trends, making CRNNs a scalable and more data-efficient choice for volatility prediction.
+
+In this work, a CRNN-based forecasting model integrated with reinforcement learning is developed and deployed to identify optimal trading times. Its performance is validated on SPX, VIX, and AAPL data streams, and its application in real-time trading is demonstrated via broker APIs.
+
+
+\section{Literature Review}
+
+\subsection{Payday Anomaly and Market Behavior}
+The payday anomaly refers to statistically significant patterns around the start of each month where indices like SPX exhibit higher average returns with reduced downside volatility \cite{quantpedia_payday}. These short-term behaviors have inspired strategies using leveraged instruments, though limitations like data sparsity require robust models. Deep learning, specifically sequence models, provides a natural fit for capturing such temporal dependencies \cite{deepvol2020}.
+
+\subsection{Benefits of CRNN in Financial Forecasting}
+Convolutional Recurrent Neural Networks (CRNNs) combine the feature extraction power of CNNs with the temporal sequence modeling of RNNs. Unlike standalone LSTMs/GRUs that often miss short-term patterns or CNNs that lack long-term context, CRNNs provide a balanced mechanism, extracting both temporal and local structures \cite{crnn_review}. In trading, this hybrid model has been shown to outperform basic RNNs or CNNs in both speed and accuracy, while being more computationally efficient than attention-based models like Transformers \cite{deepvol2020, tsang_crnn}.
+
+\subsection{Bayesian and Reinforcement-Based Trading Models}
+Bayesian approaches allow uncertainty modeling, providing predictive distributions rather than point forecasts. This is particularly useful in financial markets where uncertainty quantification (e.g., via Monte Carlo Dropout) supports risk-aware decisions \cite{blundell2015weight}. Reinforcement Learning, particularly Q-learning and Deep Q Networks (DQNs), enables trading agents to learn optimal policies through interaction with market environments. These agents maximize cumulative returns by adapting to feedback and have been applied to dynamic portfolio management and trade execution \cite{moody2001learning, deng2016deeptrader}. While more complex, such models offer adaptive decision-making in volatile markets.
+
+
+
+% \subsection{Volatility Indices}
+% The CBOE Volatility Index (VIX) is a measure of the stock markets volatility based on S\&P 500 options' implied volatility. It has also become a popular target for time series analysis in an attempt to find arbitrage opportunities in the market \cite{cai_predicting_2023}. Various studies have used different types of neural networks to lower risk while options trading, a field characterised by large market swings \cite{osterrieder_neural_2020}. However, while the VIX has been used for volatility forecasting, using it as a feature in order to predict the SPX remains underexplored. 
+
+
+\section{Methodology}
+
+\subsection{Data Collection}
+Financial data was collected using the Alpaca API for the SPX and VIX indices. Additionally, AAPL data was used for microstructure-level trading time analysis. These datasets provide both market performance (SPX) and sentiment-driven volatility signals (VIX). Due to data limitations for VIX before 1990, the time range was restricted accordingly. Retrieved features included: Open, High, Low, Close, Volume, VWAP, and Trade Count. Real-time data was later streamed via WebSocket connections for live inference.
+
+\subsection{Data Preprocessing}
+The datasets were merged on timestamps and cleaned by forward-filling missing values. Technical indicators were engineered using both classic (e.g., Moving Average, RSI, EMA) and statistical transformations (e.g., log returns, lagged returns). Features were normalized using \texttt{MinMaxScaler} to aid in neural network convergence.
+
+% Feature selection was guided by correlation heatmaps and variance thresholds. Additional transformations like \texttt{PowerTransformer} were applied to the VIX data to better capture distributional characteristics. 
+The final dataset was split chronologically into training, validation, and test sets.
+
+\subsection{Model Architecture}
+The proposed CRNN model integrates convolutional and recurrent components to process multi-dimensional time series. The architecture consists of:
+
+\begin{itemize}
+    \item 1D Convolutional layers for detecting local patterns in technical indicators.
+    \item ReLU activation for non-linearity.
+    \item GRU or LSTM recurrent layers to capture temporal dependencies.
+    \item Dropout layers for regularization.
+    \item Fully connected Dense layers for mapping to regression output.
+\end{itemize}
+
+The model was implemented in TensorFlow/Keras and allows modular selection between GRU, LSTM, and vanilla RNNs via parameter injection. Loss was measured using Mean Squared Error (MSE), with Mean Absolute Error (MAE) and directional accuracy (MDA) as evaluation metrics.
+
+\subsection{Training and Hyperparameter Optimization}
+Model training followed a mini-batch gradient descent approach with early stopping. Hyperparameters such as the number of recurrent units, learning rate, dropout, and batch size were tuned using Optuna's Bayesian optimization strategy. Optimal configurations were chosen based on validation MAE and generalization performance.
+
+To address the challenge of choosing the best time to trade, a Q-learning agent was introduced. This agent was trained using historical predictions, reward signals (based on directional accuracy and profit), and feedback from simulated trades. A discretized time-slot environment was constructed to identify when model confidence aligned with historically profitable action zones.
+
+\subsection{Prediction and Market Application}
+The final CRNN model was used to forecast near-future volatility and direction. Output predictions were converted to position signals through thresholding and signal aggregation. Based on Q-agent recommendations, trades were simulated using a strategy combining predictive returns with VIX-based insurance weights (via linear regression).
+
+To test real-world viability, the full pipeline was deployed with live data ingestion through WebSocket feeds, executing trades via broker APIs (Alpaca and Lynx). This closed-loop system allowed automated signal generation, risk-adjusted trade sizing, and conditional order placement—all in real-time.
+
+
+
+\bibliographystyle{IEEEtran}
+\bibliography{WUTIS_Report}
+
+
+\end{document}

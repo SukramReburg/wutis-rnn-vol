@@ -75,8 +75,8 @@ class TradingWindowOptimizer:
         return float(pd.Series(scores).mean()) if scores else 0.0
 
     def optimize(self, n_trials: int = 50, 
-                 study_name: str | None = None,
-                 storage_name: str | None = None,) -> optuna.Study:
+                 study_name: str = None,
+                 storage_name: str = None,) -> optuna.Study:
         """
         Run the Optuna study, searching for the best (n_days, window_size).
     

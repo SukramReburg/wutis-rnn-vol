@@ -81,13 +81,16 @@ if __name__ == "__main__":
     optuna_dir = PROJECT_ROOT / "studies"
     optuna_dir.mkdir(exist_ok=True)
 
-    db_path = optuna_dir / "tunign_crnn.sqlite3"
+    db_path = optuna_dir / "tuning_crnn.sqlite3"
     storage_name = f"sqlite:///{db_path}"
 
     # Multi-objective optimization with Optuna
-    study = optuna.create_study(directions=["minimize", "minimize", "minimize"],
-                                study_name = optuna_config['study_name'], 
-                                storage = storage_name)
+    study = optuna.create_study(
+        directions=["minimize", "minimize", "minimize"],
+        study_name=optuna_config['study_name'],
+        storage=storage_name,
+        load_if_exists=True
+    )
     
     study.optimize(objective, n_trials=15)
 

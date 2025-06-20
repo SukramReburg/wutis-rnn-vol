@@ -51,6 +51,10 @@ python tuning.py
 
 Ensure you have configured the `model_config.yaml` file beforehand.
 
+Rerunning `tuning.py` will reuse the existing Optuna study stored at
+`studies/tuning_crnn.sqlite3`. Delete this database file if you want to start a
+fresh tuning session.
+
 ---
 
 ## Configuration

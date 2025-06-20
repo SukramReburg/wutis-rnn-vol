@@ -3,6 +3,8 @@ import numpy as np
 from train import train_model
 import os
 import yaml
+from pathlib import Path
+
 
 def calculate_metrics(y_true, y_pred):
     mae = np.mean(np.abs(y_true - y_pred))
@@ -69,9 +71,25 @@ def objective(trial):
     return mae, mse, 1 - mda
 
 if __name__ == "__main__":
+
+    with open('config/model_config.yaml', 'r') as file:
+        model_config = yaml.safe_load(file)
+    optuna_config = model_config['optuna_param']
+
+    PROJECT_ROOT = Path.cwd()  
+    # make sure the folder exists
+    optuna_dir = PROJECT_ROOT / "studies"
+    optuna_dir.mkdir(exist_ok=True)
+
+    db_path = optuna_dir / "tunign_crnn.sqlite3"
+    storage_name = f"sqlite:///{db_path}"
+
     # Multi-objective optimization with Optuna
-    study = optuna.create_study(directions=["minimize", "minimize", "minimize"])
-    study.optimize(objective, n_trials=5)
+    study = optuna.create_study(directions=["minimize", "minimize", "minimize"],
+                                study_name = optuna_config['study_name'], 
+                                storage = storage_name)
+    
+    study.optimize(objective, n_trials=15)
 
     # Analyze results
     print("Best trial:")

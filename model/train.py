@@ -3,9 +3,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 from models import create_model, ModelConfig
 import yaml
+import tensorflow as tf
+from tensorflow import keras
 
 
-def train_model(model_name, epochs, batch_size, save_path, learning_rate, verbose=True):
+def train_model(model_name, 
+                epochs, 
+                batch_size, 
+                save_path, 
+                learning_rate, 
+                verbose=True) -> 'tf.keras.Sequential':
 
     with open('config/data_config.yaml', 'r') as f:
         config = yaml.safe_load(f)
@@ -67,6 +74,7 @@ def train_model(model_name, epochs, batch_size, save_path, learning_rate, verbos
     # Save the trained model
     model.save(os.path.join(save_path, f"{model_name}_final_model.keras"))
     print("Model saved")
+    return model
 
 if __name__ == "__main__":
     with open('config/model_config.yaml', 'r') as f:

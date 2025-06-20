@@ -38,6 +38,6 @@ if __name__ == "__main__":
     os.makedirs(path, exist_ok=True)
 
     for ticker in tickers:
-        print(f"Fetching data for {ticker}...")
+        print(f"Fetching data for {ticker}, and start year {start_year}...")
         df = fetch_alpaca(ticker,start_year)
         df.to_csv(os.path.join(path, f"{ticker}.csv"))

@@ -1,6 +1,6 @@
 import optuna
 import numpy as np
-from train import train_model
+from .train import train_model
 import os
 import yaml
 from pathlib import Path

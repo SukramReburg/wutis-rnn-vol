@@ -46,7 +46,7 @@ python train.py
 To fine-tune the model, run:
 
 ```bash
-python tuning.py
+python -m model.tuning
 ```
 
 Ensure you have configured the `model_config.yaml` file beforehand.

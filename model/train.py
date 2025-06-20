@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-from models import create_model, ModelConfig
+from .models import create_model, ModelConfig
 import yaml
 import tensorflow as tf
 from tensorflow import keras

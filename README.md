@@ -55,6 +55,17 @@ Rerunning `tuning.py` will reuse the existing Optuna study stored at
 `studies/tuning_crnn.sqlite3`. Delete this database file if you want to start a
 fresh tuning session.
 
+### 4. Backtest the Model
+Evaluate the tuned model on the held-out test set with:
+
+```bash
+python -m model.backtest --plot
+```
+
+This script loads the best Optuna trial and prints metrics such as MAE, MSE, MDA
+and SMAPE. Use the optional `--plot` flag to visualize predicted vs. actual
+volatility.
+
 ---
 
 ## Configuration

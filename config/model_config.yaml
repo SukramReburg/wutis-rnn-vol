@@ -9,4 +9,4 @@ paths:
 
 optuna_param: 
   n_trials: 15
-  study_name: 'crnn_study'
+  study_name: 'tuning_crnn'

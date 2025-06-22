@@ -60,7 +60,8 @@ def create_datasets(merged_data, path):
 
     X = sliding_window_view(data_values, (sequence_length, data_values.shape[1]), axis=(0, 1))
     X = X.reshape(-1, sequence_length, data_values.shape[1])
-    
+    X = X[:-1]  # drop last window without a corresponding target
+
     y = target_values[sequence_length:]
     
     X = np.array(X)

@@ -192,3 +192,5 @@ processed/
 
 # Uncomment when working on final model training
 models/
+analysis/plots/pred_vs_test_files/
+wutis-rnn-vol/

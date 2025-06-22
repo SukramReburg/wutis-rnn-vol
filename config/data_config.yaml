@@ -44,3 +44,4 @@ paths:
   raw: 'data/raw'  
   processed: 'data/processed'
   plots: 'analysis/plots'
+  analysis: 'analysis'

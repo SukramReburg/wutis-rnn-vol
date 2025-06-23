@@ -1,7 +1,10 @@
 import tensorflow as tf
 
-from tensorflow.keras import layers, models
-from tensorflow.keras.optimizers import Adam
+from tensorflow import keras
+from keras import layers, models, optimizers
+from keras.optimizers import Adam
+
+
 
 class ModelConfig:
     def __init__(self, input_shape, learning_rate): # TODO: add more parameters for model config

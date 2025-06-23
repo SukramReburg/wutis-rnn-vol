@@ -1,7 +1,7 @@
 tickers: 
   - 'SPY'
   - 'VIXY'
-start_year: 2024
+start_year: 2022
 indicators_for_tickers: 
     - 'SPY'
     - 'VIXY'
@@ -44,3 +44,4 @@ paths:
   raw: 'data/raw'  
   processed: 'data/processed'
   plots: 'analysis/plots'
+  analysis: 'analysis'

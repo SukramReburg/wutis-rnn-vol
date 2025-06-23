@@ -2,6 +2,7 @@ from indicators import *
 import yaml
 import os
 from sklearn.preprocessing import MinMaxScaler
+import joblib
 from numpy.lib.stride_tricks import sliding_window_view
 
 def merge_data(): 
@@ -41,7 +42,7 @@ def merge_data():
 
     return merged_data
 
-def create_datasets(merged_data, path): 
+def create_datasets(merged_data, path):
     with open('config/data_config.yaml', 'r') as f:
         config = yaml.safe_load(f)
 
@@ -59,7 +60,8 @@ def create_datasets(merged_data, path):
 
     X = sliding_window_view(data_values, (sequence_length, data_values.shape[1]), axis=(0, 1))
     X = X.reshape(-1, sequence_length, data_values.shape[1])
-    
+    X = X[:-1]  # drop last window without a corresponding target
+
     y = target_values[sequence_length:]
     
     X = np.array(X)
@@ -88,11 +90,13 @@ def create_datasets(merged_data, path):
     X_test_scaled = np.empty_like(X_test)
 
     print(f"Scaling data with {n_features} features...")
+    feature_scalers = []
     for i in range(n_features):
         scaler = MinMaxScaler()
         X_train_scaled[:, :, i] = scaler.fit_transform(X_train[:, :, i])
         X_val_scaled[:, :, i] = scaler.transform(X_val[:, :, i])
         X_test_scaled[:, :, i] = scaler.transform(X_test[:, :, i])
+        feature_scalers.append(scaler)
     
     X_train_scaled = X_train_scaled[..., np.newaxis]
     X_val_scaled = X_val_scaled[..., np.newaxis]
@@ -103,6 +107,8 @@ def create_datasets(merged_data, path):
     y_val_scaled = y_scaler.transform(y_val.reshape(-1, 1)).flatten()
     y_test_scaled = y_scaler.transform(y_test.reshape(-1, 1)).flatten()
 
+    save_scalers(feature_scalers, y_scaler, path)
+
     # Save the splits
     np.save(os.path.join(path, 'X_train.npy'), X_train_scaled)
     np.save(os.path.join(path, 'y_train.npy'), y_train_scaled)
@@ -112,6 +118,24 @@ def create_datasets(merged_data, path):
     np.save(os.path.join(path, 'y_test.npy'), y_test_scaled)
 
     print(f"Dataset created with shape X: {X.shape}, y: {y.shape}")
+
+def save_scalers(feature_scalers, y_scaler, path):
+    scaler_dir = os.path.join(path, 'scalers')
+    os.makedirs(scaler_dir, exist_ok=True)
+    joblib.dump(feature_scalers, os.path.join(scaler_dir, 'feature_scalers.joblib'))
+    joblib.dump(y_scaler, os.path.join(scaler_dir, 'y_scaler.joblib'))
+
+def load_scalers(path):
+    scaler_dir = os.path.join(path, 'scalers')
+    feature_scalers = joblib.load(os.path.join(scaler_dir, 'feature_scalers.joblib'))
+    y_scaler = joblib.load(os.path.join(scaler_dir, 'y_scaler.joblib'))
+    return feature_scalers, y_scaler
+
+def scale_with_saved_scalers(X, feature_scalers):
+    X_scaled = np.empty_like(X)
+    for i, scaler in enumerate(feature_scalers):
+        X_scaled[:, :, i] = scaler.transform(X[:, :, i])
+    return X_scaled
 
 def create_dir(): 
     with open('config/data_config.yaml', 'r') as f:

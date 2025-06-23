@@ -6,3 +6,7 @@ learning_rate: 0.001
 paths: 
   models: 'model/models'
   plots: 'analysis/plots'
+
+optuna_param: 
+  n_trials: 15
+  study_name: 'tuning_crnn'

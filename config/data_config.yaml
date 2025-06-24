@@ -1,47 +1,41 @@
-tickers: 
-  - 'SPY'
-  - 'VIXY'
-start_year: 2022
-indicators_for_tickers: 
-    - 'SPY'
-    - 'VIXY'
-indicators: 
-  - name: 'ma'
-    params:
-      period: 14
-  - name: 'rsi'
-    params:
-      period: 14
-  - name: 'bb'
-    params:
-      period: 20
-      num_std_dev: 2
-  - name: 'macd'
-    params:
-      short_window: 12
-      long_window: 26
-      signal_window: 9
-  # - name: 'adx'
-  #   params:
-  #     period: 14
-  - name: 'stoch'
-    params:
-      period: 14
-      smooth_k: 3
-      smooth_d: 3
-  - name: 'vol'
-    params:
-      period: 60
-
+indicators:
+- name: ma
+  params:
+    period: 14
+- name: rsi
+  params:
+    period: 14
+- name: bb
+  params:
+    num_std_dev: 2
+    period: 20
+- name: macd
+  params:
+    long_window: 26
+    short_window: 12
+    signal_window: 9
+- name: stoch
+  params:
+    period: 14
+    smooth_d: 3
+    smooth_k: 3
+- name: vol
+  params:
+    period: 60
+indicators_for_tickers:
+- SPY
+- VIXY
+paths:
+  analysis: analysis
+  plots: analysis/plots
+  processed: data/processed
+  raw: data/raw
 sequence_length: 60
-y_column: 'SPY_vol'
-
+start_year: 2022
+tickers:
+- SPY
+- VIXY
 train_size: 0.7
-# test_size: 0.2
 val_size: 0.1
-
-paths: 
-  raw: 'data/raw'  
-  processed: 'data/processed'
-  plots: 'analysis/plots'
-  analysis: 'analysis'
+y_column: SPY_vol
+y_column_index: 15

@@ -52,7 +52,14 @@ def create_datasets(merged_data, path):
     if column_to_predict not in merged_data.columns:
         raise ValueError(f"Column to predict '{column_to_predict}' not found in the data.")
 
-    print (f"Creating datasets with sequence length: {sequence_length} and target column: {column_to_predict}")
+    # Find the index of the column_to_predict and write it to the YAML file
+    column_index = merged_data.columns.get_loc(column_to_predict)
+    config['y_column_index'] = column_index
+    with open('config/data_config.yaml', 'w') as f:
+        yaml.safe_dump(config, f)
+
+    print(f"Column to predict '{column_to_predict}' found at index {column_index}. Updated config file.")
+    print(f"Creating datasets with sequence length: {sequence_length} and target column: {column_to_predict}")
 
     # Prepare the dataset
     data_values = merged_data.drop(columns=[column_to_predict]).values
@@ -67,6 +74,8 @@ def create_datasets(merged_data, path):
     X = np.array(X)
     y = np.array(y)
 
+    print(f"Dataset created with shape X: {X.shape}, y: {y.shape}")
+
     # Split the dataset into training, validation, and test sets
     train_ratio = config['train_size']
     val_ratio = config['val_size']
@@ -79,9 +88,13 @@ def create_datasets(merged_data, path):
     train_end = int(total_samples * train_ratio)
     val_end = train_end + int(total_samples * val_ratio)
 
+    print(f"Dataset split: {train_end} train, {val_end - train_end} val, {total_samples - val_end} test")
     X_train, y_train = X[:train_end], y[:train_end]
     X_val, y_val = X[train_end:val_end], y[train_end:val_end]
     X_test, y_test = X[val_end:], y[val_end:]
+    print(f"Shapes after split - X_train: {X_train.shape}, y_train: {y_train.shape}, "
+          f"X_val: {X_val.shape}, y_val: {y_val.shape}, "
+          f"X_test: {X_test.shape}, y_test: {y_test.shape}")
 
     # Scale the data
     n_features = X_train.shape[2]
@@ -116,8 +129,6 @@ def create_datasets(merged_data, path):
     np.save(os.path.join(path, 'y_val.npy'), y_val_scaled)
     np.save(os.path.join(path, 'X_test.npy'), X_test_scaled)
     np.save(os.path.join(path, 'y_test.npy'), y_test_scaled)
-
-    print(f"Dataset created with shape X: {X.shape}, y: {y.shape}")
 
 def save_scalers(feature_scalers, y_scaler, path):
     scaler_dir = os.path.join(path, 'scalers')

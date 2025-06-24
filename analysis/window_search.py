@@ -30,7 +30,7 @@ if __name__ == "__main__":
     db_path = optuna_dir / "window_search.sqlite3"
     storage_name = f"sqlite:///{db_path}"
 
-    study_name = "SPY_trading_window_optimization_80_20_oter"
+    study_name = "SPY_trading_window_optimization_70_25_5"
 
     config_path = 'config/data_config.yaml'
 
@@ -53,13 +53,13 @@ if __name__ == "__main__":
         MarketEnvironment,
         RSIStrategy,
         DataSplitter.split_by_date,
-        alpha = 0.8, # Volatility
-        beta = 0.2, # Volume
-        gamma = 0.1, # Profit
+        alpha = 0.7, # Volatility
+        beta = 0.25, # Volume
+        gamma = 0.05, # Profit
         min_window_size=15,  # Minimum window size
         max_window_size=720  # Maximum window size 
     )
-    study = optimizer.optimize(n_trials=2, 
+    study = optimizer.optimize(n_trials=1000, 
                             study_name = study_name, 
                             storage_name = storage_name)
 
@@ -87,18 +87,18 @@ if __name__ == "__main__":
     fig3 = plot_contour(study, params=["n_days", "window_size"])
     path3 = os.path.join(output_path, 'opt_contour.png')
     fig3.write_image(path3)
-
-    one_day = DataSplitter.split_by_date(df)[0]
-    best_n = 107
-    best_w = 24
-
-    bars_per_day = len(one_day)
-    slots = list(range(0, bars_per_day, best_w))
-
-    # 4) Stage 2: Q‐learning to pick EXACTLY best_n days + slots
-    env   = MarketEnvironment(df, RSIStrategy())
-    n_states = len(env.calendar_days) * len(slots)
-    agent = QLearningAgent(n_states=n_states, alpha=0.1, gamma=0.99, epsilon=1.0)
+# 
+    # one_day = DataSplitter.split_by_date(df)[0]
+    # best_n = 107
+    # best_w = 24
+# 
+    # bars_per_day = len(one_day)
+    # slots = list(range(0, bars_per_day, best_w))
+# 
+    # # 4) Stage 2: Q‐learning to pick EXACTLY best_n days + slots
+    # env   = MarketEnvironment(df, RSIStrategy())
+    # n_states = len(env.calendar_days) * len(slots)
+    # agent = QLearningAgent(n_states=n_states, alpha=0.1, gamma=0.99, epsilon=1.0)
 
     # chosen_calendar = train_q_learning_and_extract_dates( # does not work because of default RSI strategy not in the dataset
     #     env         = env,

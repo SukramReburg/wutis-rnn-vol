@@ -17,6 +17,15 @@ class DataSplitter:
         df[date_col] = pd.to_datetime(df[date_col]).dt.date
         groups = [grp.reset_index(drop=True) for _, grp in df.groupby(date_col, sort=True)]
         return groups
+    
+    @staticmethod
+    def split_by_mmdd(data: pd.DataFrame, date_col='date') -> list[pd.DataFrame]:
+        df = data.copy()
+        df[date_col] = pd.to_datetime(df[date_col])
+        df['MMDD'] = df[date_col].dt.strftime('%m-%d')
+        groups = [grp.reset_index(drop=True) for _, grp in df.groupby('MMDD', sort=True)]
+        return groups
+
 
 
 class TradingAlgorithm:

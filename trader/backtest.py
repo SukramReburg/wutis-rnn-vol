@@ -26,6 +26,27 @@ class BacktestModel(bt.Strategy):
         self.bar_counter = 0
         self.threshold_percent = threshold_percent
         self.idx = 0  # to index into X_test
+        self.trade_history = [] # store details for each trade 
+
+    def notify_trade(self, trade):
+        if trade.isclosed:
+            entry_dt = bt.num2date(trade.dtopen)
+            exit_dt = bt.num2date(trade.dtclose)
+            exit_price = getattr(trade, "priceclose", None)
+            if exit_price is None:
+                # Fallback to the current close if the attribute is not present
+                exit_price = self.data.close[0]
+
+            self.trade_history.append(
+                {
+                    "entry_datetime": entry_dt,
+                    "entry_price": trade.price,
+                    "exit_datetime": exit_dt,
+                    "exit_price": exit_price,
+                    "pnl": trade.pnl,
+                    "pnl_comm": trade.pnlcomm,
+                }
+            )
 
     def next(self):
         if len(self) < self.window_size:
@@ -128,7 +149,7 @@ if __name__ == "__main__":
     print("Data:\n", data.head())
 
     df = data.copy()    
-    df['datetime'] = pd.date_range(start='2024-01-01', periods=len(df), freq='1min')
+    df['datetime'] = pd.date_range(start='2025-06-12', periods=len(df), freq='1min')
     df.set_index('datetime', inplace=True)
 
     data = bt.feeds.PandasData(dataname=df, datetime=None, openinterest=None, fromdate=None, todate=None)   
@@ -140,6 +161,11 @@ if __name__ == "__main__":
     cerebro = bt.Cerebro()
     cerebro.adddata(data)
     cerebro.addstrategy(BacktestModel, trading_model=trading_model, X_test=X_test, y_test=y_test, scaler=y_scaler, threshold_percent=0.04)
+
+    cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
+    cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
+    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe')
+    cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
     #Run backtest
     result = cerebro.run()
     print("Backtest completed.")
@@ -147,5 +173,40 @@ if __name__ == "__main__":
     print("Number of trades executed:", len(cerebro.broker.orders))
     print("Final cash:", cerebro.broker.getcash())
     print("Results:", result)
+
+    # Extract results from analyzers
+    analysis = result[0].analyzers
+    trade_stats = analysis.trades.get_analysis()
+    drawdown = analysis.drawdown.get_analysis()
+    sharpe = analysis.sharpe.get_analysis()
+    returns = analysis.returns.get_analysis()
+
+    total_net_profit = trade_stats.get('pnl', {}).get('net', {}).get('total', 0.0)
+    total_wins = trade_stats.get('won', {}).get('total', 0)
+    total_closed = trade_stats.get('total', {}).get('closed', 0)
+    win_ratio = (total_wins / total_closed) if total_closed else 0.0
+    max_dd_percent = drawdown.get('max', {}).get('drawdown', 0.0)
+    sharpe_ratio = sharpe.get('sharperatio', 0.0)
+
+    print("Total Net Profit:", total_net_profit)
+    print("Win Ratio:", win_ratio)
+    print("Max Drawdown %:", max_dd_percent)
+    print("Sharpe Ratio:", sharpe_ratio)
+
+    # Optionally store metrics for later comparison
+    metrics = {
+        'total_net_profit': float(total_net_profit),
+        'win_ratio': float(win_ratio),
+        'max_drawdown_percent': float(max_dd_percent),
+        'sharpe_ratio': float(sharpe_ratio)
+    }
+    with open('backtest_metrics.yaml', 'w') as f:
+        yaml.safe_dump(metrics, f)
+    
+    # Save trade history to CSV
+    trade_df = pd.DataFrame(result[0].trade_history)
+    if not trade_df.empty:
+        trade_df.to_csv('trades.csv', index=False)
+
     # Plot results
     cerebro.plot(style='candlestick')

@@ -1,9 +1,12 @@
 import numpy as np
-from tensorflow.keras.models import load_model
+from tensorflow import keras
+from keras.models import load_model
 from alpaca.trading.client import TradingClient
 import joblib
 import os 
 import yaml
+import warnings
+
 
 class TradingModel:
     def __init__(self):
@@ -101,22 +104,47 @@ class AlpacaTradingClient(TradingModel):
         self.trading_client = TradingClient(api_key=api_key, secret_key=secret_key, paper=True, url_override=base_url)
 
     def buy(self, last_value, symbol, qty):
-        return self.trading_client.submit_order(
-            symbol=symbol,
-            qty=qty,
-            side='buy',
-            type='market',
-            time_in_force='gtc'
-        )
+        """Submit a buy order through Alpaca.
+
+        If the order submission fails a warning is emitted and ``None`` is
+        returned.
+        """
+
+        abs_qty = abs(qty)
+
+        try:
+            return self.trading_client.submit_order(
+                symbol=symbol,
+                qty=abs_qty,
+                side='buy',
+                type='market',
+                time_in_force='gtc'
+            )
+        except Exception as e:  # pragma: no cover - network dependent
+            warnings.warn(f"Failed to execute buy order for {symbol}: {e}")
+            return None
 
     def sell(self, last_value, symbol, qty):
-        return self.trading_client.submit_order(
-            symbol=symbol,
-            qty=qty,
-            side='sell',
-            type='market',
-            time_in_force='gtc'
-        )
+        """Submit a sell order through Alpaca.
+
+        Any negative ``qty`` values are converted to a positive number as the
+        Alpaca API expects the quantity to always be positive.  If the order
+        submission fails, a warning is emitted and ``None`` is returned.
+        """
+
+        abs_qty = abs(qty)
+
+        try:
+            return self.trading_client.submit_order(
+                symbol=symbol,
+                qty=abs_qty,
+                side='sell',
+                type='market',
+                time_in_force='gtc'
+            )
+        except Exception as e:  # pragma: no cover - network dependent
+            warnings.warn(f"Failed to execute sell order for {symbol}: {e}")
+            return None
 
 # Example usage:
 # if __name__ == "__main__":

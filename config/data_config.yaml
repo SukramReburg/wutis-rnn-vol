@@ -38,4 +38,3 @@ tickers:
 train_size: 0.7
 val_size: 0.1
 y_column: SPY_vol
-y_column_index: 15

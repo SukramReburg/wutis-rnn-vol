@@ -7,7 +7,6 @@ from tensorflow import keras
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 import matplotlib.pyplot as plt
 from tuning import calculate_metrics
-from trader.trading_model import TradingModel
 
 def save_metrics_to_yaml(metrics: dict, model_name: str, output_dir: str, filename: str = "model_metrics.yaml"):
     # Define path
@@ -89,59 +88,6 @@ def plot_predictions(y_true, y_pred, analysis_path, model_name):
     plt.show()
     plt.close()
 
-# Backtesting with TradingModel
-class BacktestTradingModel(TradingModel):
-    def __init__(self):
-        super().__init__()
-        self.trades = []  # List to store trades
-
-    def buy(self, last, symbol, qty):
-        self.trades.append({"action": "buy", "price": last, "symbol": symbol, "qty": qty})
-
-    def sell(self, last, symbol, qty):
-        self.trades.append({"action": "sell", "price": last, "symbol": symbol, "qty": qty})
-
-
-def backtest_trading_model(X_test, y_test, model, n_deviations=1.5, initial_capital=10000):
-    """
-    Perform backtesting using the TradingModel and calculate capital flow.
-    :param X_test: Test features (numpy array)
-    :param y_test: Test labels (numpy array)
-    :param model: Instance of BacktestTradingModel
-    :param n_deviations: Number of deviations to determine trade direction
-    :param initial_capital: Starting capital for backtesting
-    """
-    capital = initial_capital
-    capital_flow = [capital]
-
-    for i in range(len(X_test)):
-        window = X_test[i]
-        last_value = y_test[i - 1] if i > 0 else y_test[i]
-        model.trade(window, last_value, n_deviations)
-
-        # Update capital based on trades
-        for trade in model.trades:
-            if trade["action"] == "buy":
-                capital -= trade["price"] * trade["qty"]
-            elif trade["action"] == "sell":
-                capital += trade["price"] * trade["qty"]
-
-        capital_flow.append(capital)
-
-    # Plot capital flow
-    plt.figure(figsize=(12, 6))
-    plt.plot(capital_flow, label="Capital Flow")
-    plt.title("Capital Flow During Backtesting")
-    plt.xlabel("Time Steps")
-    plt.ylabel("Capital")
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
-    plt.close()
-
-    return model.trades, capital_flow
-
-
 if __name__ == "__main__":
     import argparse
 
@@ -200,16 +146,8 @@ if __name__ == "__main__":
 
     
     np.savetxt(os.path.join(base_dir, paths_data['processed'], "y_pred.csv"), y_pred)
-    np.savetxt(os.path.join(base_dir, paths_data['processed'], "y_test.csv"), y_test) 
-    
-    # Initialize the trading model
-    trading_model = BacktestTradingModel()
 
-    # Perform backtesting
-    trades = backtest_trading_model(X_test, y_test, trading_model)
+    y_test_path = os.path.join(base_dir, paths_data['processed'], "y_test.csv")
+    np.savetxt(y_test_path, y_test) 
 
-    # Save trades to a CSV file
-    trades_path = os.path.join(base_dir, paths_data['processed'], "trades.csv")
-    np.savetxt(trades_path, trades, delimiter=",")
-    print(f"Trades saved to {trades_path}")
 

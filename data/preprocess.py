@@ -38,7 +38,7 @@ def merge_data():
    
     # Save the merged data
     print(f"Merged data shape: {merged_data.shape}")
-    # merged_data.to_csv(os.path.join(path, 'merged_data.csv'), index=False)
+    merged_data.to_csv(os.path.join(path, 'merged_data.csv'), index=False)
 
     return merged_data
 
@@ -53,12 +53,12 @@ def create_datasets(merged_data, path):
         raise ValueError(f"Column to predict '{column_to_predict}' not found in the data.")
 
     # Find the index of the column_to_predict and write it to the YAML file
-    column_index = merged_data.columns.get_loc(column_to_predict)
-    config['y_column_index'] = column_index
-    with open('config/data_config.yaml', 'w') as f:
-        yaml.safe_dump(config, f)
+    # column_index = merged_data.columns.get_loc(column_to_predict)
+    # config['y_column_index'] = column_index
+    # with open('config/data_config.yaml', 'w') as f:
+    #     yaml.safe_dump(config, f)
 
-    print(f"Column to predict '{column_to_predict}' found at index {column_index}. Updated config file.")
+    # print(f"Column to predict '{column_to_predict}' found at index {column_index}. Updated config file.")
     print(f"Creating datasets with sequence length: {sequence_length} and target column: {column_to_predict}")
 
     # Prepare the dataset

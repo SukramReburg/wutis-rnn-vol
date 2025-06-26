@@ -28,6 +28,7 @@ indicators_for_tickers:
 paths:
   analysis: analysis
   plots: analysis/plots
+  results: analysis/results
   processed: data/processed
   raw: data/raw
 sequence_length: 60

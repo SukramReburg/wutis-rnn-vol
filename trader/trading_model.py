@@ -1,7 +1,7 @@
 import numpy as np
 from tensorflow.keras.models import load_model
 from alpaca.trading.client import TradingClient
-
+import joblib
 import os 
 import yaml
 
@@ -11,7 +11,22 @@ class TradingModel:
         with open('config/model_config.yaml', 'r') as f:
             config = yaml.safe_load(f)
         model_path = os.path.join(config['paths']['models'], config['name'] + '_final_model.keras')
+
+        with open("config/data_config.yaml", "r") as f:
+            config = yaml.safe_load(f) 
+
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        processed_dir = os.path.join(base_dir, config["paths"]["processed"])
+
+        scaler_path = os.path.join(processed_dir, "scalers", "y_scaler.joblib")
+        if os.path.exists(scaler_path):
+            with open(scaler_path, "rb") as f:
+                self.scaler = joblib.load(f)
+        else:
+            self.scaler = None
+
         self.model = load_model(model_path)
+        self.last_predicted_value = None
 
     def predict_next_value(self, window):
         """
@@ -20,10 +35,12 @@ class TradingModel:
         :return: Predicted next value
         """
         window = np.expand_dims(window, axis=0)  # Add batch dimension
-        prediction = self.model.predict(window)
-        return prediction[0][0]  # Assuming the model outputs a single value
+        prediction = self.model.predict(window).flatten()
+        prediction = self.scaler.inverse_transform(prediction.reshape(-1, 1)).flatten()[0] if self.scaler else prediction
 
-    def trade(self, window, last_value, n_deviations):
+        return prediction
+
+    def trade(self, window, current_values ,threshold_percent=0.5):
         """
         Place a trade based on the predicted value.
         :param window: A numpy array of shape (60, 31)
@@ -31,22 +48,32 @@ class TradingModel:
         :param n_deviations: Number of deviations to determine trade direction
         """
         predicted_value = self.predict_next_value(window)
-        deviation = abs(predicted_value - last_value)
+        if self.last_predicted_value is None:
+            self.last_predicted_value = predicted_value
+            return None
+        pred_percent_change = (predicted_value - self.last_predicted_value) / self.last_predicted_value
+
+        self.last_predicted_value = predicted_value.copy()
+        print(f"Percent Change: {pred_percent_change}")
+        current_percent_change = (current_values[1] - current_values[0]) / current_values[0]
 
         with open('config/data_config.yaml', 'r') as f:
             config = yaml.safe_load(f)
         ticker = config['tickers'][-1]  # Assuming we are trading the last ticker
 
         qty = 1 
-        if predicted_value > last_value + n_deviations * deviation:
-            self.buy(ticker, qty=1)
-            return {"dir": 1, "last": last_value, "qty": qty}
+        if self.last_predicted_value is not None:
+            if pred_percent_change > threshold_percent and current_percent_change < 0:
+                return self.buy(ticker, qty=pred_percent_change/threshold_percent)
 
-        elif predicted_value < last_value - n_deviations * deviation:
-            self.sell(ticker, qty=1)
-            return {"dir": 0, "last": last_value, "qty": qty}
+            elif pred_percent_change < -threshold_percent and current_percent_change > 0:
+                return self.sell(ticker, qty=pred_percent_change/threshold_percent)
+                
+            else:
+                return None
         else:
             return None
+        
 
     def buy(self,last_value, symbol, qty):
         """
@@ -74,7 +101,7 @@ class AlpacaTradingClient(TradingModel):
         self.trading_client = TradingClient(api_key=api_key, secret_key=secret_key, paper=True, url_override=base_url)
 
     def buy(self, last_value, symbol, qty):
-        self.trading_client.submit_order(
+        return self.trading_client.submit_order(
             symbol=symbol,
             qty=qty,
             side='buy',
@@ -83,7 +110,7 @@ class AlpacaTradingClient(TradingModel):
         )
 
     def sell(self, last_value, symbol, qty):
-        self.trading_client.submit_order(
+        return self.trading_client.submit_order(
             symbol=symbol,
             qty=qty,
             side='sell',

@@ -27,7 +27,8 @@ class BacktestModel(bt.Strategy):
         self.threshold_percent = threshold_percent
         self.idx = 0  # to index into X_test
         self.trade_history = []
-        self.open_trades = []  # Track all open trades
+        self.order_history = []  # Track every executed order
+        self.open_trades = []  # Track all open trades (both long and short)
 
     def notify_order(self, order):
         if order.status != order.Completed:
@@ -36,59 +37,84 @@ class BacktestModel(bt.Strategy):
         dt = bt.num2date(order.executed.dt)
         price = order.executed.price
         size = order.executed.size
-        direction = 1 if order.isbuy() else -1
-        entry_comm = order.executed.comm  # for buy
-        exit_comm = order.executed.comm   # for sell
+
+        self.order_history.append({
+            "datetime": dt,
+            "price": price,
+            "size": size,
+            "direction": "buy" if order.isbuy() else "sell",
+        })
+
+        abs_size = abs(size)
 
         if order.isbuy():
-            # Record a new trade
-            self.open_trades.append({
-                "order_ref": order.ref,
-                "entry_datetime": dt,
-                "entry_price": price,
-                "size": size,
-                "dir": direction,
-            })
+            remaining = abs_size
+            closed = []
+            for pos in self.open_trades:
+                if pos["dir"] != -1:
+                    continue
+                close_qty = min(remaining, pos["size"])
+                self.trade_history.append({
+                    "entry_datetime": pos["entry_datetime"],
+                    "entry_price": pos["entry_price"],
+                    "exit_datetime": dt,
+                    "exit_price": price,
+                    "size": close_qty,
+                    "dir": -1,
+                    "pnl": (pos["entry_price"] - price) * close_qty,
+                })
+                pos["size"] -= close_qty
+                remaining -= close_qty
+                if pos["size"] == 0:
+                    closed.append(pos)
+                if remaining == 0:
+                    break
+            for pos in closed:
+                self.open_trades.remove(pos)
+
+            if remaining > 0:
+                self.open_trades.append({
+                    "order_ref": order.ref,
+                    "entry_datetime": dt,
+                    "entry_price": price,
+                    "size": remaining,
+                    "dir": 1,
+                })
 
         elif order.issell():
-            # Match to one or more existing buys
-            remaining_size = size
-            closed_trades = []
-
-            # FIFO matching (or use LIFO or weighted avg if you prefer)
-            for open_trade in self.open_trades:
-                if open_trade["dir"] != 1:
-                    continue  # Not a long trade
-
-                if remaining_size >= open_trade["size"]:
-                    # Full close of this trade
-                    closed_size = open_trade["size"]
-                    self.trade_history.append({
-                        "entry_datetime": open_trade["entry_datetime"],
-                        "entry_price": open_trade["entry_price"],
-                        "exit_datetime": dt,
-                        "exit_price": price,
-                        "size": closed_size,
-                        "pnl": (price - open_trade["entry_price"]) * closed_size
-                    })
-                    remaining_size -= closed_size
-                    closed_trades.append(open_trade)
-                else:
-                    # Partial close
-                    closed_size = remaining_size
-                    self.trade_history.append({
-                        "entry_datetime": open_trade["entry_datetime"],
-                        "entry_price": open_trade["entry_price"],
-                        "exit_datetime": dt,
-                        "exit_price": price,
-                        "size": closed_size,
-                        "pnl": (price - open_trade["entry_price"]) * closed_size                    })
-                    open_trade["size"] -= closed_size
-                    remaining_size = 0
+            remaining = abs_size
+            closed = []
+            for pos in self.open_trades:
+                if pos["dir"] != 1:
+                    continue
+                close_qty = min(remaining, pos["size"])
+                self.trade_history.append({
+                    "entry_datetime": pos["entry_datetime"],
+                    "entry_price": pos["entry_price"],
+                    "exit_datetime": dt,
+                    "exit_price": price,
+                    "size": close_qty,
+                    "dir": 1,
+                    "pnl": (price - pos["entry_price"]) * close_qty,
+                })
+                pos["size"] -= close_qty
+                remaining -= close_qty
+                if pos["size"] == 0:
+                    closed.append(pos)
+                if remaining == 0:
                     break
+            for pos in closed:
+                self.open_trades.remove(pos)
 
-            for trade in closed_trades:
-                self.open_trades.remove(trade)
+            if remaining > 0:
+                self.open_trades.append({
+                    "order_ref": order.ref,
+                    "entry_datetime": dt,
+                    "entry_price": price,
+                    "size": remaining,
+                    "dir": -1,
+                })
+
 
     def next(self):
         if len(self) < self.window_size:
@@ -261,12 +287,18 @@ if __name__ == "__main__":
     with open(metrics_path, 'w') as f:
         yaml.safe_dump(metrics, f)
     
-    # Save trade history to CSV
+    # Save trade history and order history to CSV
     trade_df = pd.DataFrame(result[0].trade_history)
+    order_df = pd.DataFrame(result[0].order_history)
+
     print("Trade History DataFrame:\n", trade_df.head())
     if not trade_df.empty:
         trade_path = os.path.join(result_dir, 'trades.csv')
         trade_df.to_csv(trade_path, index=False)
+
+    if not order_df.empty:
+        order_path = os.path.join(result_dir, 'orders.csv')
+        order_df.to_csv(order_path, index=False)
 
     # Plot results
     cerebro.plot(style='candlestick')

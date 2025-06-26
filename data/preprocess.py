@@ -38,7 +38,7 @@ def merge_data():
    
     # Save the merged data
     print(f"Merged data shape: {merged_data.shape}")
-    # merged_data.to_csv(os.path.join(path, 'merged_data.csv'), index=False)
+    merged_data.to_csv(os.path.join(path, 'merged_data.csv'), index=False)
 
     return merged_data
 

@@ -52,6 +52,7 @@ class BacktestModel(bt.Strategy):
 def load_data(processed_dir: str):
     """Load test arrays and scalers."""
     X_test = np.load(os.path.join(processed_dir, "X_test.npy"))
+    X_test = np.squeeze(X_test, axis=-1)
     y_test = np.load(os.path.join(processed_dir, "y_test.npy"))
     print('Test Dataset shape:',X_test.shape, y_test.shape)
 
@@ -59,11 +60,46 @@ def load_data(processed_dir: str):
     if os.path.exists(scaler_path):
         with open(scaler_path, "rb") as f:
             scaler = joblib.load(f)
+            
     else:
         scaler = None
     print("Scaler loaded:", scaler)
 
-    return X_test, y_test, scaler
+    feature_scalers_path = os.path.join(processed_dir, "scalers", "feature_scalers.joblib")
+    if os.path.exists(feature_scalers_path):
+        with open(feature_scalers_path, "rb") as f:
+            feature_scalers = joblib.load(f)
+    else:
+        feature_scalers = None
+
+    return X_test, y_test, scaler, feature_scalers
+
+def reverse_sliding_window(X_test, sequence_length):
+    """
+    Reconstruct the original data array from overlapping sliding windows used in LSTM preprocessing.
+
+    Parameters:
+    - X_test: np.ndarray, shape (num_windows, sequence_length, num_features)
+    - sequence_length: int, length of each sequence window
+
+    Returns:
+    - reconstructed: np.ndarray, shape (original_length, num_features)
+    """
+    num_windows, _, num_features = X_test.shape
+    original_length = num_windows + sequence_length - 1
+
+    reconstructed = np.zeros((original_length, num_features))
+    counts = np.zeros((original_length, 1))
+
+    for i in range(num_windows):
+        reconstructed[i:i+sequence_length] += X_test[i]
+        counts[i:i+sequence_length] += 1
+
+    # Avoid division by zero
+    counts[counts == 0] = 1
+    reconstructed /= counts
+
+    return reconstructed
 
 if __name__ == "__main__":
 
@@ -74,26 +110,28 @@ if __name__ == "__main__":
     processed_dir = os.path.join(base_dir, config["paths"]["processed"])
     raw_dir = os.path.join(base_dir, config["paths"]["raw"])
 
-    vixy_path = os.path.join(raw_dir, "VIXY.csv")
-    
-    X_test, y_test, y_scaler = load_data(processed_dir)
+    X_test, y_test, y_scaler,feature_scalers = load_data(processed_dir)
+    print("X_test shape:", X_test.shape)
 
     if y_scaler is not None:
         y_test = y_scaler.inverse_transform(y_test.reshape(-1, 1)).flatten()
 
-    # Load data
-    df = pd.read_csv(vixy_path).loc[y_test.shape[0]-1:]
-    # Convert 'timestamp' to datetime
-    df['timestamp'] = pd.to_datetime(df['timestamp'])
+    if feature_scalers is not None:
+        for i, scaler in enumerate(feature_scalers):
+            X_test[:,:, i] = scaler.inverse_transform(X_test[:,:, i])
 
-    # Set as the index
-    df.set_index('timestamp', inplace=True)
+    data = reverse_sliding_window(X_test, X_test.shape[1])[:, 15:22]
 
-    data = bt.feeds.PandasData(
-        dataname=df,
-        timeframe=bt.TimeFrame.Minutes,
-        compression=1  # 1-minute frequency
-    )
+    columns = ['open','high','low','close','volume','trade_count','vwap']
+    data = pd.DataFrame(data, columns=columns)
+    print("Data shape:", data.shape)
+    print("Data:\n", data.head())
+
+    df = data.copy()    
+    df['datetime'] = pd.date_range(start='2024-01-01', periods=len(df), freq='1min')
+    df.set_index('datetime', inplace=True)
+
+    data = bt.feeds.PandasData(dataname=df, datetime=None, openinterest=None, fromdate=None, todate=None)   
 
     # Initialize TradingModel
     trading_model = TestTradingModel()
@@ -101,7 +139,13 @@ if __name__ == "__main__":
     # Initialize backtrader
     cerebro = bt.Cerebro()
     cerebro.adddata(data)
-    cerebro.addstrategy(BacktestModel, trading_model=trading_model, X_test=X_test, y_test=y_test, scaler=y_scaler, threshold_percent=0.025)
+    cerebro.addstrategy(BacktestModel, trading_model=trading_model, X_test=X_test, y_test=y_test, scaler=y_scaler, threshold_percent=0.04)
     #Run backtest
-    cerebro.run()
+    result = cerebro.run()
+    print("Backtest completed.")
+    print("Final Portfolio Value: %.2f" % cerebro.broker.getvalue())
+    print("Number of trades executed:", len(cerebro.broker.orders))
+    print("Final cash:", cerebro.broker.getcash())
+    print("Results:", result)
+    # Plot results
     cerebro.plot(style='candlestick')

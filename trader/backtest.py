@@ -25,6 +25,7 @@ class BacktestModel(bt.Strategy):
         self.window_size = 60
         self.bar_counter = 0
         self.threshold_percent = threshold_percent
+        self.stop_loss_percent = stop_loss_percent
         self.idx = 0  # to index into X_test
         self.trade_history = []
         self.order_history = []  # Track every executed order
@@ -124,7 +125,7 @@ class BacktestModel(bt.Strategy):
             window = self.X_test[self.idx]
             last_value = self.y_test[self.idx - 2:self.idx] if self.idx > 1 else None   # only to get the last scaled value without scaling X_test
             if last_value is not None:
-                trade = self.trading_model.trade(window, last_value, self.threshold_percent)
+                trade = self.trading_model.trade(window, last_value, self.threshold_percent, self.stop_loss_percent)
                 print(trade)
                 if trade:
                     direction = trade['dir']
@@ -201,7 +202,7 @@ if __name__ == "__main__":
     result_dir = os.path.join(base_dir, config["paths"]["results"])
 
     X_test, y_test, y_scaler,feature_scalers = load_data(processed_dir)
-    # print("X_test shape:", X_test.shape)
+    print("X_test shape:", X_test.shape)
 
     if y_scaler is not None:
         y_test = y_scaler.inverse_transform(y_test.reshape(-1, 1)).flatten()
@@ -211,21 +212,19 @@ if __name__ == "__main__":
             X_test[:,:, i] = scaler.inverse_transform(X_test[:,:, i])
 
     # Just for testing purposes, we will use the last 7 minutes of data
-    n_bars = 2*2*60
-    window_size = X_test.shape[1]
-    n_windows = n_bars - window_size + 1
-    X_subset = X_test[-n_windows:]
-    y_subset = y_test[-n_windows:]
+    # n_bars = 2*2*60
+    # window_size = X_test.shape[1]
+    # n_windows = n_bars - window_size + 1
+    # X_subset = X_test[-n_windows:]
+    # y_subset = y_test[-n_windows:]
 
-    # data = reverse_sliding_window(X_test, X_test.shape[1])[:, 15:22]
-    data = reverse_sliding_window(X_subset, window_size)[:, 15:22]
+    data = reverse_sliding_window(X_test, X_test.shape[1])[:, 15:22]
+    # data = reverse_sliding_window(X_subset, window_size)[:, 15:22]
 
     columns = ['open','high','low','close','volume','trade_count','vwap']
     data = pd.DataFrame(data, columns=columns)
     print("Data shape:", data.shape)
     print("Data:\n", data.head())
-
-    print("X_test shape:", X_subset.shape)
 
     df = data.copy()    
     df['datetime'] = pd.date_range(start='2024-11-01', periods=len(df), freq='1min')
@@ -239,8 +238,7 @@ if __name__ == "__main__":
     # Initialize backtrader
     cerebro = bt.Cerebro()
     cerebro.adddata(data)
-    cerebro.addstrategy(BacktestModel, trading_model=trading_model, X_test=X_subset, y_test=y_subset, scaler=y_scaler, threshold_percent=0.04)
-    # cerebro.addstrategy(BacktestModel, trading_model=trading_model, X_test=X_test, y_test=y_test, scaler=y_scaler, threshold_percent=0.04)
+    cerebro.addstrategy(BacktestModel, trading_model=trading_model, X_test=X_test, y_test=y_test, scaler=y_scaler, threshold_percent=0.04, stop_loss_percent=0.2)
 
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')

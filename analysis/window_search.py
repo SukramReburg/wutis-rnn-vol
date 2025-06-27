@@ -30,7 +30,7 @@ if __name__ == "__main__":
     db_path = optuna_dir / "window_search.sqlite3"
     storage_name = f"sqlite:///{db_path}"
 
-    study_name = "SPY_trading_window_optimization_70_25_5"
+    study_name = "SPY_trading_window_optimization_70_18_12"
 
     config_path = 'config/data_config.yaml'
 
@@ -54,12 +54,12 @@ if __name__ == "__main__":
         RSIStrategy,
         DataSplitter.split_by_date,
         alpha = 0.7, # Volatility
-        beta = 0.25, # Volume
-        gamma = 0.05, # Profit
+        beta = 0.18, # Volume
+        gamma = 0.12, # Profit
         min_window_size=15,  # Minimum window size
         max_window_size=720  # Maximum window size 
     )
-    study = optimizer.optimize(n_trials=1000, 
+    study = optimizer.optimize(n_trials=100, 
                             study_name = study_name, 
                             storage_name = storage_name)
 

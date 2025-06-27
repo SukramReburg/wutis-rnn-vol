@@ -194,3 +194,4 @@ processed/
 models/
 analysis/plots/pred_vs_test_files/
 wutis-rnn-vol/
+analysis/results/

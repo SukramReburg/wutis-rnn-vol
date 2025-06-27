@@ -1,9 +1,12 @@
 import numpy as np
-from tensorflow.keras.models import load_model
+from tensorflow import keras
+from keras.models import load_model
 from alpaca.trading.client import TradingClient
 import joblib
 import os 
 import yaml
+import warnings
+
 
 class TradingModel:
     def __init__(self):
@@ -27,6 +30,11 @@ class TradingModel:
 
         self.model = load_model(model_path)
         self.last_predicted_value = None
+        # Track open position information for stop loss handling
+        self.position = 0           # 1 for long, -1 for short, 0 for flat
+        self.entry_price = None
+        self.position_qty = 0
+
 
     def predict_next_value(self, window):
         """
@@ -40,12 +48,15 @@ class TradingModel:
 
         return prediction
 
-    def trade(self, window, current_values ,threshold_percent=0.5):
+    def trade(self, window, current_values, threshold_percent=0.5, stop_loss_percent=0.2):
         """
         Place a trade based on the predicted value.
         :param window: A numpy array of shape (60, 31)
         :param last_value: The last value in the series
         :param n_deviations: Number of deviations to determine trade direction
+        :param current_values: Array containing the last two observed values
+        :param threshold_percent: Threshold for opening a trade based on the prediction
+        :param stop_loss_percent: Stop loss level expressed as a decimal (e.g. 0.2 for 20%)
         """
         predicted_value = self.predict_next_value(window)
         if self.last_predicted_value is None:
@@ -61,27 +72,50 @@ class TradingModel:
             config = yaml.safe_load(f)
         ticker = config['tickers'][-1]  # Assuming we are trading the last ticker
 
-        qty = 1 
-        if self.last_predicted_value is not None:
+        qty = 1
+
+        current_price = current_values[1]
+        # Stop loss handling for existing positions
+        if self.position == 1 and self.entry_price is not None:
+            if (current_price - self.entry_price) / self.entry_price <= -stop_loss_percent:
+                exit_qty = self.position_qty
+                self.position = 0
+                self.entry_price = None
+                self.position_qty = 0
+                return self.sell(ticker, qty=exit_qty)
+        elif self.position == -1 and self.entry_price is not None:
+            if (current_price - self.entry_price) / self.entry_price >= stop_loss_percent:
+                exit_qty = self.position_qty
+                self.position = 0
+                self.entry_price = None
+                self.position_qty = 0
+                return self.buy(ticker, qty=exit_qty)
+
+        if self.position == 0:
             if pred_percent_change > threshold_percent and current_percent_change < 0:
-                return self.buy(ticker, qty=pred_percent_change/threshold_percent)
+                qty = pred_percent_change / threshold_percent
+                self.position = 1
+                self.entry_price = current_price
+                self.position_qty = qty
+                return self.buy(ticker, qty=qty)
 
             elif pred_percent_change < -threshold_percent and current_percent_change > 0:
-                return self.sell(ticker, qty=pred_percent_change/threshold_percent)
-                
-            else:
-                return None
-        else:
-            return None
+                qty = abs(pred_percent_change / threshold_percent)
+                self.position = -1
+                self.entry_price = current_price
+                self.position_qty = qty
+                return self.sell(ticker, qty=qty)
+
+        return None
         
 
-    def buy(self,last_value, symbol, qty):
+    def buy(self, symbol, qty):
         """
         Placeholder method for buying. Should be overridden in subclasses.
         """
         raise NotImplementedError("The 'buy' method must be implemented in a subclass.")
 
-    def sell(self,last_value, symbol, qty):
+    def sell(self, symbol, qty):
         """
         Placeholder method for selling. Should be overridden in subclasses.
         """
@@ -100,23 +134,48 @@ class AlpacaTradingClient(TradingModel):
         # Initialize Alpaca API
         self.trading_client = TradingClient(api_key=api_key, secret_key=secret_key, paper=True, url_override=base_url)
 
-    def buy(self, last_value, symbol, qty):
-        return self.trading_client.submit_order(
-            symbol=symbol,
-            qty=qty,
-            side='buy',
-            type='market',
-            time_in_force='gtc'
-        )
+    def buy(self, symbol, qty):
+        """Submit a buy order through Alpaca.
 
-    def sell(self, last_value, symbol, qty):
-        return self.trading_client.submit_order(
-            symbol=symbol,
-            qty=qty,
-            side='sell',
-            type='market',
-            time_in_force='gtc'
-        )
+        If the order submission fails a warning is emitted and ``None`` is
+        returned.
+        """
+
+        abs_qty = abs(qty)
+
+        try:
+            return self.trading_client.submit_order(
+                symbol=symbol,
+                qty=abs_qty,
+                side='buy',
+                type='market',
+                time_in_force='gtc'
+            )
+        except Exception as e:  # pragma: no cover - network dependent
+            warnings.warn(f"Failed to execute buy order for {symbol}: {e}")
+            return None
+
+    def sell(self, symbol, qty):
+        """Submit a sell order through Alpaca.
+
+        Any negative ``qty`` values are converted to a positive number as the
+        Alpaca API expects the quantity to always be positive.  If the order
+        submission fails, a warning is emitted and ``None`` is returned.
+        """
+
+        abs_qty = abs(qty)
+
+        try:
+            return self.trading_client.submit_order(
+                symbol=symbol,
+                qty=abs_qty,
+                side='sell',
+                type='market',
+                time_in_force='gtc'
+            )
+        except Exception as e:  # pragma: no cover - network dependent
+            warnings.warn(f"Failed to execute sell order for {symbol}: {e}")
+            return None
 
 # Example usage:
 # if __name__ == "__main__":
